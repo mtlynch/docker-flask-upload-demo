@@ -61,5 +61,5 @@ CMD set -x && \
     . VIRTUAL/bin/activate && \
     gunicorn \
       demo.app:app \
-      --bind 127.0.0.1:5000
+      --bind 127.0.0.1:5000 \
       --log-level info
