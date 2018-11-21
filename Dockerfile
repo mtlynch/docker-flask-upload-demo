@@ -32,6 +32,26 @@ RUN set -x && \
     usermod --append --groups "$NGINX_GROUP" "$APP_USER" && \
     echo "$APP_USER ALL=(ALL:ALL) NOPASSWD: /usr/sbin/nginx" >> /etc/sudoers
 
+# Install gcsfuse.
+ARG GCSFUSE_REPO="gcsfuse-stretch"
+ARG GCS_MOUNT_ROOT="/mnt/gcsfuse"
+RUN set -x && \
+    apt-get install --yes --no-install-recommends \
+    ca-certificates \
+    curl && \
+    echo "deb http://packages.cloud.google.com/apt $GCSFUSE_REPO main" \
+      | tee /etc/apt/sources.list.d/gcsfuse.list && \
+    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+      | apt-key add -
+RUN apt-get update
+RUN set -x && \
+    apt-get install --yes gcsfuse && \
+    echo 'user_allow_other' > /etc/fuse.conf && \
+    mkdir --parents "$GCS_MOUNT_ROOT" && \
+    chown \
+      --no-dereference \
+      "${APP_USER}:${NGINX_GROUP}" "$GCS_MOUNT_ROOT"
+
 # Create directory for app source code.
 ARG APP_ROOT="/srv/demo-app"
 RUN mkdir --parents "$APP_ROOT" && \
@@ -53,10 +73,21 @@ RUN set -x && \
 
 EXPOSE 5000
 
-# Run demo app.
+ENV GCS_BUCKET "REPLACE-WITH-YOUR-GCS-BUCKET-NAME"
+ENV GCS_MOUNT_ROOT "$GCS_MOUNT_ROOT"
+ENV APP_UPLOADS_DIR "${APP_ROOT}/demo/uploads"
 
+# Run demo app.
 CMD set -x && \
     sudo nginx && \
+    gcsfuse \
+      -o nonempty \
+      -o allow_other \
+      --implicit-dirs \
+      "$GCS_BUCKET" "$GCS_MOUNT_ROOT" && \
+    if [ ! -d "$APP_UPLOADS_DIR" ]; then \
+      ln --symbolic "$GCS_MOUNT_ROOT" "$APP_UPLOADS_DIR"; \
+    fi && \
     virtualenv VIRTUAL && \
     . VIRTUAL/bin/activate && \
     gunicorn \
