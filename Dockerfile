@@ -43,7 +43,6 @@ RUN set -x && \
 EXPOSE 5000
 
 # Run demo app.
-USER "$APP_USER"
 ENV FLASK_APP "demo/app.py"
 CMD virtualenv VIRTUAL && \
     . VIRTUAL/bin/activate && \
