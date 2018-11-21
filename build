@@ -20,7 +20,7 @@ docker rm -f "$CONTAINER_NAME" &> /dev/null || true
 docker run \
   --tty \
   --detach \
-  --publish 80:5000 \
+  --publish 80:80 \
   --name "$CONTAINER_NAME" \
   "$IMAGE_NAME"
 

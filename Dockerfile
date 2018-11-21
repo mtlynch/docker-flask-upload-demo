@@ -21,13 +21,24 @@ RUN set -x && \
       --gid "$APP_GROUP" \
       "$APP_USER"
 
+# Install nginx.
+ARG NGINX_GROUP="www-data"
+COPY nginx.conf /etc/nginx/sites-enabled/nginx.conf
+RUN set -x && \
+    apt-get install --yes \
+      nginx \
+      sudo && \
+    rm /etc/nginx/sites-enabled/default && \
+    usermod --append --groups "$NGINX_GROUP" "$APP_USER" && \
+    echo "$APP_USER ALL=(ALL:ALL) NOPASSWD: /usr/sbin/nginx" >> /etc/sudoers
+
 # Create directory for app source code.
 ARG APP_ROOT="/srv/demo-app"
 RUN mkdir --parents "$APP_ROOT" && \
     chown \
       --no-dereference \
       --recursive \
-      "${APP_USER}:${APP_GROUP}" "$APP_ROOT"
+      "${APP_USER}:${NGINX_GROUP}" "$APP_ROOT"
 
 USER "$APP_USER"
 WORKDIR "$APP_ROOT"
@@ -43,10 +54,12 @@ RUN set -x && \
 EXPOSE 5000
 
 # Run demo app.
-ENV FLASK_APP "demo/app.py"
-CMD virtualenv VIRTUAL && \
+
+CMD set -x && \
+    sudo nginx && \
+    virtualenv VIRTUAL && \
     . VIRTUAL/bin/activate && \
     gunicorn \
       demo.app:app \
-      --bind 0.0.0.0:5000 \
+      --bind 127.0.0.1:5000
       --log-level info
