@@ -46,4 +46,7 @@ EXPOSE 5000
 ENV FLASK_APP "demo/app.py"
 CMD virtualenv VIRTUAL && \
     . VIRTUAL/bin/activate && \
-    flask run --host=0.0.0.0 --port=5000
+    gunicorn \
+      demo.app:app \
+      --bind 0.0.0.0:5000 \
+      --log-level info
